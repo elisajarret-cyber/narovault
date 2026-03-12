@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Naro | Private Wealth</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #050505; --card: #111114; --accent: #f7931a; --text: #ffffff; --dim: #71717a; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+        
+        /* AUTH SCREEN */
+        #setup-screen { width: 100%; max-width: 400px; padding: 20px; text-align: center; }
+        .setup-box { background: var(--card); padding: 40px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.05); }
+        input { width: 100%; padding: 16px; margin: 10px 0; background: #18181b; border: 1px solid #27272a; border-radius: 14px; color: white; box-sizing: border-box; outline: none; -webkit-appearance: none; }
+        .btn { width: 100%; padding: 16px; background: var(--accent); color: #000; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; margin-top: 15px; }
+
+        /* DASHBOARD */
+        #dashboard { display: none; width: 90%; max-width: 450px; }
+        .balance-card { background: linear-gradient(145deg, #111114, #1b1b20); padding: 40px; border-radius: 35px; border: 1px solid rgba(247, 147, 26, 0.3); text-align: center; margin-bottom: 25px; }
+        .bal-amt { font-size: 48px; font-weight: 600; color: var(--accent); margin: 10px 0; }
+
+        /* ADMIN PANEL (Hidden) */
+        #admin-panel { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 500; padding: 30px; }
+        .admin-box { background: #1a1a1a; padding: 25px; border-radius: 24px; width: 100%; border: 1px solid var(--accent); }
+
+        /* MODALS */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(15px); }
+        .modal { width: 85%; background: var(--card); padding: 30px; border-radius: 32px; border: 1px solid #27272a; text-align: center; }
+        .fee-box { background: rgba(247, 147, 26, 0.1); border: 1px solid var(--accent); padding: 15px; border-radius: 16px; margin: 15px 0; font-size: 22px; font-weight: 700; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="setup-box">
+            <div id="naro-logo" style="margin-bottom: 20px; transition: 0.3s;">
+                <svg width="60" height="60" viewBox="0 0 100 100" fill="none">
+                    <path d="M50 5L85 22.5V77.5L50 95L15 77.5V22.5L50 5Z" stroke="#f7931a" stroke-width="4"/>
+                    <path d="M35 70V30L50 50L65 30V70" stroke="#f7931a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div style="color: var(--accent); font-size: 24px; font-weight: 600; letter-spacing: 5px;">NARO</div>
+            <input type="text" id="user-name" placeholder="Full Name">
+            <input type="password" id="user-pin" placeholder="Access PIN">
+            <button class="btn" onclick="login()">Login to Vault</button>
+        </div>
+    </div>
+
+    <div id="dashboard">
+        <div style="margin-bottom: 20px;">
+            <div style="font-size: 11px; color: var(--dim);">PRIVATE CLIENT</div>
+            <div id="display-name" style="font-size: 20px; font-weight: 600;">---</div>
+        </div>
+        <div class="balance-card">
+            <div style="font-size: 11px; color: var(--dim);">TOTAL BALANCE</div>
+            <div class="bal-amt" id="main-balance">$70,000.00</div>
+            <div style="font-size: 12px; color: var(--accent);">● Verified Assets</div>
+        </div>
+        <button class="btn" onclick="openWithdraw()">Withdraw Funds</button>
+    </div>
+
+    <div id="modal-withdraw" class="overlay">
+        <div class="modal">
+            <h3 style="color: var(--accent);">Activation Fee</h3>
+            <p style="font-size: 13px; color: var(--dim);">A mandatory processing fee is required to release these funds.</p>
+            <div class="fee-box" id="display-fee">$600.00</div>
+            <p style="font-size: 11px; color: var(--dim);">Deposit exactly the amount above in BTC to verify ownership.</p>
+            <button class="btn" onclick="alert('Payment Verification in progress...')">Verify Payment</button>
+            <button class="btn" style="background:none; color:var(--dim);" onclick="closeAll()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="admin-panel">
+        <div class="admin-box">
+            <h2 style="color: var(--accent); margin-top: 0;">Admin Controls</h2>
+            <label style="font-size: 12px;">Change Balance ($)</label>
+            <input type="number" id="admin-bal-input" placeholder="e.g. 100000">
+            <label style="font-size: 12px;">Change Fee ($)</label>
+            <input type="number" id="admin-fee-input" placeholder="e.g. 1200">
+            <button class="btn" onclick="applyAdminChanges()">Update Website</button>
+            <button class="btn" style="background: #333; color: white;" onclick="closeAdmin()">Exit Admin</button>
+        </div>
+    </div>
+
+    <script>
+        let siteData = { balance: 70000, fee: 600 };
+        let logoTimer;
+
+        // Long Press Logic for Admin Panel
+        const logo = document.getElementById('naro-logo');
+        logo.addEventListener('touchstart', () => {
+            logoTimer = setTimeout(() => {
+                document.getElementById('admin-panel').style.display = 'flex';
+            }, 3000); // 3 Seconds Hold
+        });
+        logo.addEventListener('touchend', () => clearTimeout(logoTimer));
+
+        function login() {
+            const n = document.getElementById('user-name').value;
+            if(!n) return alert("Enter Name");
+            document.getElementById('display-name').innerText = n.toUpperCase();
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+        }
+
+        function openWithdraw() { document.getElementById('modal-withdraw').style.display = 'flex'; }
+        function closeAll() { document.querySelectorAll('.overlay').forEach(el => el.style.display = 'none'); }
+
+        function applyAdminChanges() {
+            const newBal = document.getElementById('admin-bal-input').value;
+            const newFee = document.getElementById('admin-fee-input').value;
+            
+            if(newBal) {
+                siteData.balance = parseFloat(newBal);
+                document.getElementById('main-balance').innerText = "$" + siteData.balance.toLocaleString();
+            }
+            if(newFee) {
+                siteData.fee = parseFloat(newFee);
+                document.getElementById('display-fee').innerText = "$" + siteData.fee.toLocaleString() + ".00";
+            }
+            alert("Admin: Website updated successfully!");
+            closeAdmin();
+        }
+
+        function closeAdmin() { document.getElementById('admin-panel').style.display = 'none'; }
+    </script>
+</body>
+</html>
